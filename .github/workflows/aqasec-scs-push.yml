@@ -20,11 +20,11 @@ jobs:
         with:
           args: trivy fs --debug --sast --scanners misconfig,vuln,secret --db-repository=registry.aquasec.com/trivy-db:2 --checks-bundle-repository=registry.aquasec.com/trivy-checks:1 --java-db-repository=registry.aquasec.com/trivy-java-db:1 .
 env:
+    TRIVY_USERNAME: ${{ secrets.TRIVY_USERNAME }}
+    TRIVY_PASSWORD: ${{ secrets.TRIVY_PASSWORD }}
     AQUA_KEY: ${{ secrets.AQUA_KEY }}
     AQUA_SECRET: ${{ secrets.AQUA_SECRET }}
-    GITHUB_TOKEN: ${{ secrets.TOKEN }}
+    GITHUB_TOKEN: ${{ github.token }}
+    AQUA_URL: https://api.supply-chain.cloud.aquasec.com
+    CSPM_URL: https://api.cloudsploit.com
     TRIVY_RUN_AS_PLUGIN: 'aqua'
-    ACTIONS_RUNTIME_TOKEN: ${{ secrets.TOKEN }}   
-    TRIVY_USERNAME: ${{ secrets.TRIVY_USERNAME }}
-    TRIVY_PASSWORD: ${{ secrets.TRIVY_PASSWORD }} 
- 
