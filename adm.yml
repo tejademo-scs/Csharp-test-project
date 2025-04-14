@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+      - release/**
+
+jobs:
+  unified-ci:
+    name: Unified CI
+    uses: ADM-Production/workflow-unified-cicd/.github/workflows/unified-ci.yml@main
+    permissions:
+      actions: write
+      attestations: write
+      checks: read
+      contents: write
+      deployments: read
+      discussions: read
+      id-token: write
+      issues: read
+      packages: read
+      pages: read
+      pull-requests: write
+      repository-projects: read
+      security-events: read
+      statuses: read
+    secrets: inherit
