@@ -1,0 +1,224 @@
+parameters:
+- name:     verbose
+  type:     boolean
+  default:  false
+
+- name:     continueOnError
+  type:     boolean
+  default:  true
+
+
+- name:     securityScansOutputDirectory
+  type:     string
+  default:  $(System.DefaultWorkingDirectory)/security-scan-reports/sbom
+
+- name:     extraParameters
+  type:     string
+  default:  ''
+
+- name:     scanTarget # The docker image name:tag of the newly built image  (eg. --artifact-path  my-image-name:${versionEnv} ) OR the path to the root folder of your project. I.e my-repo/my-app 
+  type:     string
+
+- name:     skipInstall
+  type:     boolean
+  default:  false
+
+- name:     enabled
+  type:     boolean
+  default:  true
+
+- name:     reportNameAppendix
+  type:     string
+  default:  ''
+
+- name: action
+  type: string
+  values:
+  - install_only # only install 
+  - scan # run filesystem scan
+
+steps:
+
+#- ${{ if eq( parameters.verbose, true ) }}: 
+#  - script: echo generate-sbom-manifest.yml parameters >> ${{parameters.artifactPath}} # ${{parameters.applicationType}}, ${{parameters.portfolioName}}, ${{parameters.productName}}, ${{parameters.cliSources}}
+#    displayName: Bootstrap DevSecOps Verbose Logging
+
+
+
+- ${{ if eq( parameters.enabled, true ) }}: 
+
+  - ${{ if eq( parameters.verbose, true ) }}: 
+      - script: echo security-scans-ci parameters >>  ${{parameters.portfolioName}}, ${{parameters.productName}}, ${{parameters.scanDirectory}}
+        displayName: $(CCHBC_PREFIX_TASK_DEVSECOPS) security-scan-aqua.yml Verbose Logging
+        condition: always()
+
+
+  - ${{ if eq( parameters.skipInstall, false ) }}: 
+
+      - bash: |
+          set +x
+
+          echo '##vso[task.prependpath]$(System.DefaultWorkingDirectory)'
+          echo '##vso[task.prependpath]$(Agent.TempDirectory)'
+
+          if command -v billy &> /dev/null ; then
+
+            tool_installed_version=$(billy -v)
+            echo billy is already installed, skipping installation.
+            echo $tool_installed_version
+          
+            exit 0
+
+          fi
+
+          which bash
+          OS=$(uname -m)
+          ARCH=$(uname -s | tr '[:upper:]' '[:lower:]')
+          os_ado=$(Agent.OS)
+
+          echo $ARCH $OS $os_ado
+          
+          
+          latestVersion="$(curl -u "$(CCHBC_GITHUB_ACCOUNT):$(CCHBC_GITHUB_PAT)" -s https://api.github.com/repos/argonsecurity/releases/tags | jq -r '.[0].name')"
+
+          echo latestVersion "$latestVersion"
+
+          if [ "$os_ado" = "Windows_NT" ]; then
+
+            echo Installing Billy $latestVersion for Windows
+
+            downloadUrl="https://github.com/argonsecurity/releases/releases/download/${latestVersion}/billy_${latestVersion}_windows_amd64.tar.gz"
+
+            
+            curl -Lo billy.tar.gz "$downloadUrl"
+            tar -xvzf billy.tar.gz
+
+            echo "##vso[task.setvariable variable=CCHBC_DEVOPS_AQUA_BILLY_VERSION;issecret=false]$latestVersion"
+            
+
+          else
+
+            echo Installing Billy $latestVersion for Linux/MacOS
+
+            
+            curl -sLo install.sh download.codesec.aquasec.com/billy/install.sh
+            curl -sLo install.sh.checksum https://github.com/argonsecurity/releases/releases/latest/download/install.sh.checksum
+            if ! cat install.sh.checksum | sha256sum ; then
+              echo "install.sh checksum failed"
+              exit 1
+            fi
+            BINDIR="$(Agent.TempDirectory)" sh install.sh
+            rm install.sh install.sh.checksum
+
+            echo "##vso[task.setvariable variable=CCHBC_DEVOPS_AQUA_BILLY_VERSION;issecret=false]$latestVersion"
+
+          fi
+
+          
+        workingDirectory: $(Agent.TempDirectory) # $(System.DefaultWorkingDirectory) # 
+        displayName: '$(CCHBC_PREFIX_TASK_DEVSECOPS) Install Aqua Billy'
+        enabled: false
+        env:
+          name: CCHBC
+
+  - ${{ if eq( parameters.action, 'scan' ) }}: 
+
+      - bash: |
+          set -x
+          echo Installed Billy version CCHBC_DEVOPS_AQUA_BILLY_VERSION = $CCHBC_DEVOPS_AQUA_BILLY_VERSION
+
+          echo '##vso[task.prependpath]$(System.DefaultWorkingDirectory)'
+          echo '##vso[task.prependpath]$(Agent.TempDirectory)'
+
+          if [ "${{parameters.skipInstall}}" = True ]; then
+            
+            echo Skipping Aqua Billy installation - skipInstall is true    
+
+          else
+
+            if command -v billy &> /dev/null ; then
+
+              tool_installed_version=$(billy -v)
+              echo billy is already installed, skipping installation.
+              echo $tool_installed_version
+            
+              # exit 0
+
+            
+            else
+              # Need to install billy
+              which bash
+              OS=$(uname -m)
+              ARCH=$(uname -s | tr '[:upper:]' '[:lower:]')
+              os_ado=$(Agent.OS)
+
+              echo $ARCH $OS $os_ado
+                          
+              latestVersion="$(curl -u "$(CCHBC_GITHUB_ACCOUNT):$(CCHBC_GITHUB_PAT)" -s https://api.github.com/repos/argonsecurity/releases/tags | jq -r '.[0].name')"
+
+              echo latestVersion "$latestVersion"
+
+              if [ "$os_ado" = "Windows_NT" ]; then
+
+                echo Installing Billy $latestVersion for Windows
+
+                downloadUrl="https://github.com/argonsecurity/releases/releases/download/${latestVersion}/billy_${latestVersion}_windows_amd64.tar.gz"
+
+                
+                curl -Lo billy.tar.gz "$downloadUrl"
+                tar -xvzf billy.tar.gz
+
+                echo "##vso[task.setvariable variable=CCHBC_DEVOPS_AQUA_BILLY_VERSION;issecret=false]$latestVersion"
+                
+
+              else
+
+                echo Installing Billy $latestVersion for Linux/MacOS
+
+                
+                curl -sLo install.sh download.codesec.aquasec.com/billy/install.sh
+                curl -sLo install.sh.checksum https://github.com/argonsecurity/releases/releases/latest/download/install.sh.checksum
+                if ! cat install.sh.checksum | sha256sum ; then
+                  echo "install.sh checksum failed"
+                  exit 1
+                fi
+                BINDIR="$(Agent.TempDirectory)" sh install.sh
+                rm install.sh install.sh.checksum
+
+                echo "##vso[task.setvariable variable=CCHBC_DEVOPS_AQUA_BILLY_VERSION;issecret=false]$latestVersion"
+
+              fi
+
+            fi
+
+          fi
+
+          # Run billy
+          export BILLY_SERVER=$(AQUA_BILLY_URL)
+          export TRIVY_USERNAME=$(AQUA_REGISTRY_USER)
+          export TRIVY_PASSWORD=$(AQUA_REGISTRY_PASSWORD)
+          export TRIVY_DB_REPOSITORY="registry.aquasec.com/trivy-db:2"
+          export TRIVY_JAVA_DB_REPOSITORY="registry.aquasec.com/trivy-java-db:1"
+          export TRIVY_CHECKS_BUNDLE_REPOSITORY="registry.aquasec.com/trivy-checks:1"
+          export GITHUB_TOKEN=$(CCHBC_GITHUB_PAT)
+          ./billy generate -d --access-token $(System.AccessToken) --aqua-key $AQUA_KEY --aqua-secret $AQUA_SECRET  --cspm-url "$(AQUA_CSPM_URL)" --artifact-path "${{parameters.scanTarget}}"
+
+        workingDirectory: $(Agent.TempDirectory) # $(System.DefaultWorkingDirectory) # $(Agent.TempDirectory)  
+        env:
+            AZURE_TOKEN: $(System.AccessToken) # $(AZURE_TOKEN) # 
+            AQUA_KEY: $(AQUA_KEY)
+            AQUA_SECRET: $(AQUA_SECRET)
+            AQUA_URL: $(AQUA_SC_URL)
+            CSPM_URL: $(AQUA_CSPM_URL)
+            TRIVY_RUN_AS_PLUGIN: aqua
+            GITHUB_TOKEN: $(CCHBC_GITHUB_PAT)
+            TRIVY_USERNAME: $(AQUA_REGISTRY_USER)
+            TRIVY_PASSWORD: $(AQUA_REGISTRY_PASSWORD)
+            #TRIVY_USERNAME: $(CCHBC_GITHUB_ACCOUNT)
+            #TRIVY_PASSWORD: $(CCHBC_GITHUB_PAT)
+            #TRIVY_AUTH_URL: "ghcr.io"
+        continueOnError: ${{parameters.continueOnError}}
+        displayName: '$(CCHBC_PREFIX_TASK_DEVSECOPS) Aqua Billy scan'
+        # condition: false # and(succeededOrFailed(), eq(variables['Agent.OS'], 'Windows_NT'))
+        #enabled: false
+
