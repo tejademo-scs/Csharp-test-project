@@ -32,3 +32,4 @@ env:
     ACTIONS_RUNTIME_TOKEN: ${{ secrets.TOKEN }}   
     TRIVY_USERNAME: ${{ secrets.TRIVY_USERNAME }}
     TRIVY_PASSWORD: ${{ secrets.TRIVY_PASSWORD }} 
+    TRIVY_INCLUDE_DEV_DEPS: 'true'
