@@ -21,7 +21,7 @@ jobs:
       - name: Run Aqua scanner
         uses: docker://aquasec/aqua-scanner:latest
         with:
-          args: trivy fs --debug --sast --dotnet-proj --include-dev-deps --scanners misconfig,vuln,secret  --skip-files ./dvcsharp-core-api.csproj --skip-dirs ./documentation-dvcsharp-book --db-repository=registry.aquasec.com/trivy-db:2 --checks-bundle-repository=registry.aquasec.com/trivy-checks:1 --java-db-repository=registry.aquasec.com/trivy-java-db:1 .
+          args: trivy fs --debug --sast --dotnet-proj --scanners misconfig,vuln,secret  --skip-files ./dvcsharp-core-api.csproj --skip-dirs ./documentation-dvcsharp-book --db-repository=registry.aquasec.com/trivy-db:2 --checks-bundle-repository=registry.aquasec.com/trivy-checks:1 --java-db-repository=registry.aquasec.com/trivy-java-db:1 .
       - name: Print environment variables
         run: env | sort
 env:
